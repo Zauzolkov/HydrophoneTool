@@ -1,5 +1,5 @@
 QT -= gui
-QT += serialport
+QT += serialport websockets
 
 CONFIG += c++11 console
 CONFIG -= app_bundle
@@ -17,7 +17,10 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         main.cpp \
-    stm32sonar.cpp
+    stm32sonar.cpp \
+    server.cpp
 
 HEADERS += \
-    stm32sonar.h
+    stm32sonar.h \
+    data_types.h \
+    server.h

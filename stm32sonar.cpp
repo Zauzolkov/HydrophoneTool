@@ -13,12 +13,15 @@ stm32sonar::stm32sonar(QString devicePath,
     serialPort->setFlowControl(QSerialPort::SoftwareControl);
     serialPort->open(QIODevice::ReadWrite);
 
+    jsonServer = new Server(3005);
+
     counter = 0;
 
     connect(serialPort, &QSerialPort::readyRead, this, &stm32sonar::handleReadyRead);
+    connect(jsonServer, &Server::settingsReceived, this, &stm32sonar::transmitSettings);
 
-    connect(&timer, &QTimer::timeout, this, &stm32sonar::transmitSettings);
-    timer.start(1500);
+//    connect(&timer, &QTimer::timeout, this, &stm32sonar::transmitSettings);
+//    timer.start(1500);
 
 //    emit(transmitSettings());
 }
@@ -112,6 +115,8 @@ void stm32sonar::handleReadyRead()
         rxData.clear();
         serialPort->clear();
         counter++;
+
+        emit jsonServer->sendResult(result, counter);
     }
 
     if (!rxData.startsWith(dataHeader))
@@ -121,55 +126,89 @@ void stm32sonar::handleReadyRead()
     }
 }
 
-bool stm32sonar::transmitSettings()
+bool stm32sonar::transmitSettings(settingsPacket settings)
 {
-//    timer.stop();
-
-    settingsPacket newSettings;
     // rate = (512*khz)/index
     // (512.0*35.5)/255
 
-    newSettings.dataHeader = dataHeader;
-//    newSettings.sampleRate0 = 70.72f;
-//    newSettings.sampleRate1 = 70.04f;
-//    newSettings.sampleRate2 = 68.07f;
-    newSettings.sampleRate0 = (512.0*25.0)/182.0;
-    newSettings.sampleRate1 = (512.0*25.0)/182.0;
-    newSettings.sampleRate2 = (512.0*25.0)/182.0;
-//    newSettings.threshold = 55000;
-    newSettings.threshold = 30000;
-    newSettings.max_a_b = 150;
-    newSettings.max_a_c = 150;
-    newSettings.min_a_b = 50;
-    newSettings.min_a_c = 50;
-    newSettings.min_b_c = 50;
-    newSettings.base_a_b = 150;
-    newSettings.dataFooter = dataFooter;
+    settings.dataHeader = dataHeader;
+    settings.dataFooter = dataFooter;
 
     QByteArray buffer;
     QDataStream out(&buffer, QIODevice::ReadWrite);
     out.setByteOrder(QDataStream::LittleEndian);
     out.setFloatingPointPrecision(QDataStream::SinglePrecision);
 
-    out << newSettings.dataHeader
-        << newSettings.sampleRate0
-        << newSettings.sampleRate1
-        << newSettings.sampleRate2
-        << newSettings.threshold
-        << newSettings.max_a_b
-        << newSettings.max_a_c
-        << newSettings.min_a_b
-        << newSettings.min_a_c
-        << newSettings.min_b_c
-        << newSettings.base_a_b
-        << newSettings.dataFooter;
-
-//    sOutput << buffer << endl;
+    out << settings.dataHeader
+        << settings.sampleRate0
+        << settings.sampleRate1
+        << settings.sampleRate2
+        << settings.threshold
+        << settings.max_a_b
+        << settings.max_a_c
+        << settings.min_a_b
+        << settings.min_a_c
+        << settings.min_b_c
+        << settings.base_a_b
+        << settings.dataFooter;
 
     int written = serialPort->write(buffer);
     serialPort->waitForBytesWritten(5000);
 
-    sOutput << "\n\t\t/// SETTINGS ARE SET: " << written << " ///\n" << endl;
+    sOutput << "\n\t\t/// SETTINGS ARE SET: " << written << " " << settings.dataHeader << " ///\n" << endl;
 
     return true;
 }
+
+//bool stm32sonar::transmitSettings()
+//{
+////    timer.stop();
+
+//    settingsPacket newSettings;
+//    // rate = (512*khz)/index
+//    // (512.0*35.5)/255
+
+//    newSettings.dataHeader = dataHeader;
+////    newSettings.sampleRate0 = 70.72f;
+////    newSettings.sampleRate1 = 70.04f;
+////    newSettings.sampleRate2 = 68.07f;
+//    newSettings.sampleRate0 = (512.0*25.0)/182.0;
+//    newSettings.sampleRate1 = (512.0*25.0)/182.0;
+//    newSettings.sampleRate2 = (512.0*25.0)/182.0;
+////    newSettings.threshold = 55000;
+//    newSettings.threshold = 30000;
+//    newSettings.max_a_b = 150;
+//    newSettings.max_a_c = 150;
+//    newSettings.min_a_b = 50;
+//    newSettings.min_a_c = 50;
+//    newSettings.min_b_c = 50;
+//    newSettings.base_a_b = 150;
+//    newSettings.dataFooter = dataFooter;
+
+//    QByteArray buffer;
+//    QDataStream out(&buffer, QIODevice::ReadWrite);
+//    out.setByteOrder(QDataStream::LittleEndian);
+//    out.setFloatingPointPrecision(QDataStream::SinglePrecision);
+
+//    out << newSettings.dataHeader
+//        << newSettings.sampleRate0
+//        << newSettings.sampleRate1
+//        << newSettings.sampleRate2
+//        << newSettings.threshold
+//        << newSettings.max_a_b
+//        << newSettings.max_a_c
+//        << newSettings.min_a_b
+//        << newSettings.min_a_c
+//        << newSettings.min_b_c
+//        << newSettings.base_a_b
+//        << newSettings.dataFooter;
+
+////    sOutput << buffer << endl;
+
+//    int written = serialPort->write(buffer);
+//    serialPort->waitForBytesWritten(5000);
+
+//    sOutput << "\n\t\t/// SETTINGS ARE SET: " << written << " ///\n" << endl;
+
+//    return true;
+//}
