@@ -18,7 +18,7 @@ stm32sonar::stm32sonar(QString devicePath,
     connect(serialPort, &QSerialPort::readyRead, this, &stm32sonar::handleReadyRead);
 
     connect(&timer, &QTimer::timeout, this, &stm32sonar::transmitSettings);
-    timer.start(1000);
+    timer.start(1500);
 
 //    emit(transmitSettings());
 }
@@ -80,15 +80,15 @@ void stm32sonar::handleReadyRead()
         sOutput << "OUTPUT: "
                 << "\tangle: " << result.angle
                 << "\tquart: " << result.ping_quarter
-                << "\tfreq: " << result.frequency
-                << "\tindex: " << result.index
-                << "\tpower: " << result.amplitude
-                << "\t first:" << result.firstHydrophone
-                << "\tcount: " << counter
-                << "\n time: " << result.timeStamp0
-                << " / " << result.timeStamp1
-                << " / " << result.timeStamp2
-                << " /// "
+                << "\tfreq: "  << result.frequency
+                << "  index: " << result.index
+                << "  power: " << result.amplitude
+                << "  first:"  << result.firstHydrophone
+                << "  count: " << counter
+                << "\n\ttime: " << result.timeStamp0
+                << ", " << result.timeStamp1
+                << ", " << result.timeStamp2
+                << ".\n"
                 << endl;
 
         /* сделать таймер, который будет сбрасывать чтение,
@@ -110,25 +110,20 @@ void stm32sonar::handleReadyRead()
          */
 
         rxData.clear();
+        serialPort->clear();
         counter++;
-
-//        if (counter == 1)
-//            emit(transmitSettings());
     }
 
     if (!rxData.startsWith(dataHeader))
+    {
         rxData.clear();
-
-//    if (!first)
-//    {
-//        first = true;
-//        emit(transmitSettings());
-//    }
+        serialPort->clear();
+    }
 }
 
 bool stm32sonar::transmitSettings()
 {
-    timer.stop();
+//    timer.stop();
 
     settingsPacket newSettings;
     // rate = (512*khz)/index
@@ -141,7 +136,8 @@ bool stm32sonar::transmitSettings()
     newSettings.sampleRate0 = (512.0*25.0)/182.0;
     newSettings.sampleRate1 = (512.0*25.0)/182.0;
     newSettings.sampleRate2 = (512.0*25.0)/182.0;
-    newSettings.threshold = 55000;
+//    newSettings.threshold = 55000;
+    newSettings.threshold = 30000;
     newSettings.max_a_b = 150;
     newSettings.max_a_c = 150;
     newSettings.min_a_b = 50;
@@ -173,7 +169,7 @@ bool stm32sonar::transmitSettings()
     int written = serialPort->write(buffer);
     serialPort->waitForBytesWritten(5000);
 
-    sOutput << "SETTINGS ARE SET " << written << " size: " << sizeof(newSettings) << endl;
+    sOutput << "\n\t\t/// SETTINGS ARE SET: " << written << " ///\n" << endl;
 
     return true;
 }

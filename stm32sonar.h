@@ -65,7 +65,6 @@ public: // PRIVATE
 
 private:
     QTextStream  sOutput;
-    bool first = false;
 };
 
 #endif // STM32SONAR_H
