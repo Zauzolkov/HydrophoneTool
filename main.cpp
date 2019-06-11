@@ -5,30 +5,11 @@
 #include <QDebug>
 #include <QSerialPortInfo>
 
-//#include <optional>
-
-//std::optional<settingsPacket> parse_some(const QString val) {
-//    if (true) {
-//        return settingsPacket{};
-//    } else {
-//        std::nullopt;
-//    }
-//}
-
 int main(int argc, char *argv[])
 {
-//    qInfo() << "Info";
-//    qWarning() << "Warn";
-//    qDebug() << "Deb";
-//    qFatal() << "Fatal err";
 //    auto QSerialPortInfo::availablePorts().first().
     QCoreApplication a(argc, argv);
     QTextStream stOutput(stdout);
-
-//    auto val = parse_some(QSting("blah"));
-//    if (val != std::nullopt) {
-//        val->get()...
-//    }
 
     stOutput << "tada!" << endl;
 
