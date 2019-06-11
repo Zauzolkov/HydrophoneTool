@@ -6,6 +6,7 @@
 #include <QDataStream>
 #include <QByteArray>
 #include <QTimer>
+#include <QSettings>
 #include <QObject>
 
 #include "data_types.h"
@@ -15,8 +16,7 @@ class stm32sonar : public QObject
 {
     Q_OBJECT
 public:
-    explicit stm32sonar(QString devicePath = "ttyUSB0",
-                        int baudRate = 115200,
+    explicit stm32sonar(QString configPath,
                         QObject *parent = nullptr);
     int success();
 
@@ -27,16 +27,18 @@ signals:
 public slots:
     bool transmitSettings(settingsPacket settings);
     void handleReadyRead();
-
-public: // make it PRIVATE later
-    QSerialPort *serialPort;
-    QByteArray   rxData;
-    QTimer       timer;
-    int          counter = 0;
+    void loadLastSettings();
+    void saveLastSettings(settingsPacket settings);
 
 private:
+    QSerialPort *serialPort;
+    QByteArray rxData;
+    QSettings *sonarSettings;
     QTextStream  sOutput;
     Server *jsonServer;
+    int counter = 0;
+    bool toConsole = false;
+    QTimer timer;
 };
 
 #endif // STM32SONAR_H

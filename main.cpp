@@ -6,26 +6,39 @@
 #include <QDir>
 #include "stm32sonar.h"
 
-void writeDefaultSettings(QSettings *settings, QSerialPortInfo *port)
+//const QString configPath = QDir::currentPath() + "/SonarConfig.ini";
+const QString configPath = "/etc/auv/config/sonar.ini";
+
+/*   /etc/auv/config/sonar.ini    */
+
+const QString red    = "\033[1;31m";
+const QString green  = "\033[1;32m";
+const QString yellow = "\033[1;33m";
+const QString norm   = "\033[0m";       // no color
+const QString redError = red + "ERROR: " + norm;
+
+void writeDefaultSettings(QSettings *settings)
 {
-    settings->setValue("UART/PID", port->productIdentifier());
-    settings->setValue("UART/VID", port->vendorIdentifier());
-    settings->setValue("UART/Serial", port->serialNumber());
+    settings->setValue("UART/PID", 60000);
+    settings->setValue("UART/VID", 4292);
+    settings->setValue("UART/Serial", "0001"); // внимание! сер. номер - строка!
     settings->setValue("UART/BaudRate", 115200);
-    settings->setValue("UART/LastPath", port->portName());
+    settings->setValue("UART/LastPath", "ttyUSB0");
 
     settings->setValue("LastSettings/SampleRate0", 70.5);
     settings->setValue("LastSettings/SampleRate1", 70.0);
-    settings->setValue("LastSettings/SampleRate2", 71.2);
-    settings->setValue("LastSettings/threshold", 45000);
+    settings->setValue("LastSettings/SampleRate2", 70.0);
+    settings->setValue("LastSettings/threshold", 35000);
+    settings->setValue("LastSettings/max_a_b", 150);
+    settings->setValue("LastSettings/max_a_c", 150);
+    settings->setValue("LastSettings/min_a_b", 50);
+    settings->setValue("LastSettings/min_a_c", 50);
+    settings->setValue("LastSettings/min_b_c", 50);
+    settings->setValue("LastSettings/base_a_b", 150);
+
     settings->setValue("ServerPort", 3005);
     settings->setValue("ConsoleOutput", true);
     settings->sync();
-}
-
-QString hex(int val)
-{
-    return QString::number(val, 16).toUpper();
 }
 
 int main(int argc, char *argv[])
@@ -33,57 +46,25 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
     QTextStream stdOutput(stdout);
     QTextStream errOutput(stderr);
-    QTextStream stdInput(stdin);
 
     const auto serialPortInfos = QSerialPortInfo::availablePorts();
 
-    QSettings settings(QDir::currentPath() + "/SonarConfig.ini",
-                       QSettings::IniFormat);
+    QSettings settings(configPath, QSettings::IniFormat);
 
     if (!settings.contains("UART/PID"))
     {
-        QString response;
-
-        stdOutput << "Welcome to SonarService!" << endl
-                  << "There is no any configured sonar." << endl
-                  << "Would you like to generate new config? (Y/N)" << endl;
-
-        stdInput >> response;
-
-        if (response.toLower() != "y")
-        {
-            std::exit(0);
-        } else {
-            stdOutput << "\nAvailable serial ports:" << endl << endl;
-            int counter = 0;
-            for (const QSerialPortInfo &port : serialPortInfos) {
-                counter++;
-                stdOutput << "[ " << counter << " ]"
-                          << "\t" << port.portName() << endl
-                          << "Manuf.:\t" << port.manufacturer() << endl
-                          << "Descr.:\t" << port.description() << endl
-                          << "PID:\t" << hex(port.productIdentifier()) << endl
-                          << "VID:\t" << hex(port.vendorIdentifier()) << endl
-                          << "Serial:\t" << port.serialNumber() << endl
-                          << endl;
-            }
-
-            do {
-                stdOutput << "Enter the number of desired device"
-                          << "[1-"<< counter << "]:" << endl;
-
-                stdInput >> response;
-
-            } while(response.toInt() < 1 || response.toInt() > counter );
-
-            QSerialPortInfo chosenPort = serialPortInfos[response.toInt()-1];
-
-            stdOutput << "\nOk, saving the config..." << endl;
-
-            writeDefaultSettings(&settings, &chosenPort);
-
-        }
+        stdOutput << yellow << "Config file is not found!" << norm << endl
+                  << "Generating new config with default values..." << endl;
+        writeDefaultSettings(&settings);
     }
+
+    if (settings.status() == QSettings::AccessError)
+    {
+        stdOutput << red << "ERROR: Failed to write config!" << endl
+                  << "Check your permissions!" << norm << endl;
+    }
+
+    bool toConsole = settings.value("ConsoleOutput").toBool();
 
     bool hasFoundSonar = false;
     for (const QSerialPortInfo &port : serialPortInfos) {
@@ -91,7 +72,9 @@ int main(int argc, char *argv[])
             port.vendorIdentifier() == settings.value("UART/VID").toInt()  &&
             port.serialNumber() == settings.value("UART/Serial").toString())
         {
-            stdOutput << "Path of sonar is " << port.portName() << endl;
+            if (toConsole)
+                stdOutput << "Path of sonar is "
+                          << yellow << port.portName() << norm << endl;
             settings.setValue("UART/LastPath", port.portName());
             hasFoundSonar = true;
         }
@@ -99,35 +82,39 @@ int main(int argc, char *argv[])
 
     if (!hasFoundSonar)
     {
-        errOutput << "ERROR: Sonar not found!" << endl;
+        if (toConsole)
+            errOutput << redError << "Sonar not found!" << endl;
         std::abort();
     }
 
-    // отправлять в stm32sonar qsettings?
-    // чтобы оттуда читать все нужные настройки уже внутри
+    stm32sonar sonar(configPath);
 
-    stm32sonar sonar(QString("ttyUSB0"), 115200);
-
-    switch (sonar.success())
+    if (toConsole)
     {
-    case 0:
-        stdOutput << "Success: SonarService started!" << endl;
-        break;
-    case 1:
-        errOutput << "ERROR: Failed to open serial device! " << endl
-                  << "General failure reading your sonar." << endl;
-        break;
-    case 2:
-        errOutput << "ERROR: Serial device is not writable!" << endl
-                  << "Check your permissions!" << endl;
-        break;
-    case 3:
-        errOutput << "ERROR: Failed to start WebSocket server!" << endl
-                  << "Maybe something is already running on 3005 port." << endl;
-        break;
-    default:
-        errOutput << "ERROR: UNKNOWN FAILURE!" << endl;
-        break;
+        switch (sonar.success())
+        {
+        case 0:
+            stdOutput << green << "Success: Connected to sonar!" << norm  << endl;
+            break;
+        case 1:
+            errOutput << redError
+                      << "Failed to open serial device! " << endl
+                      << "General failure reading your sonar." << endl;
+            break;
+        case 2:
+            errOutput << redError
+                      << "Serial device is not writable!" << endl
+                      << "Check your permissions!" << endl;
+            break;
+        case 3:
+            errOutput << redError
+                      << "Failed to start WebSocket server!" << endl
+                      << "Maybe something is already running on 3005 port." << endl;
+            break;
+        default:
+            errOutput << red << "ERROR: UNKNOWN FAILURE!" << endl;
+            break;
+        }
     }
 
     if (sonar.success() != 0)

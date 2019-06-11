@@ -1,34 +1,32 @@
 #include "stm32sonar.h"
 
-stm32sonar::stm32sonar(QString devicePath,
-                       int baudRate,
+stm32sonar::stm32sonar(QString configPath,
                        QObject *parent) : QObject(parent), sOutput(stdout)
 {
+    sonarSettings = new QSettings(configPath, QSettings::IniFormat);
+
+    toConsole = sonarSettings->value("ConsoleOutput").toBool();
+
     serialPort = new QSerialPort();
-    serialPort->setPortName(devicePath);
-    serialPort->setBaudRate(baudRate);
+    serialPort->setPortName(sonarSettings->value("UART/LastPath").toString());
+    serialPort->setBaudRate(sonarSettings->value("UART/BaudRate").toInt());
     serialPort->setDataBits(QSerialPort::Data8);
     serialPort->setParity(QSerialPort::NoParity);
     serialPort->setStopBits(QSerialPort::OneStop);
     serialPort->setFlowControl(QSerialPort::SoftwareControl);
     serialPort->open(QIODevice::ReadWrite);
 
-    jsonServer = new Server(3005);
-
-    counter = 0;
+    jsonServer = new Server(sonarSettings->value("ServerPort").toInt());
 
     connect(serialPort, &QSerialPort::readyRead,
             this, &stm32sonar::handleReadyRead);
 
     connect(jsonServer, &Server::settingsReceived,
             this, &stm32sonar::transmitSettings);
+
+    loadLastSettings();
 }
 
-/* 0 = ok
- * 1 = failed to open
- * 2 = not writable
- * 3 = server failed to start
- */
 
 int stm32sonar::success()
 {
@@ -69,27 +67,29 @@ void stm32sonar::handleReadyRead()
             >> result.timeStamp2
             >> result.footer;
 
-        sOutput << "OUTPUT: "
-                << "\tangle: " << result.angle
-                << "\tquart: " << result.ping_quarter
-                << "\tfreq: "  << result.frequency
-                << "  index: " << result.index
-                << "  power: " << result.amplitude
-                << "  first:"  << result.firstHydrophone
-                << "  count: " << counter
-                << "\n\ttime: " << result.timeStamp0
-                << ", " << result.timeStamp1
-                << ", " << result.timeStamp2
-                << ".\n"
-                << endl;
+        if (toConsole)
+        {
+            sOutput << "OUTPUT:"
+                    << "\tangle: " << result.angle
+                    << "\tquart: " << result.ping_quarter
+                    << "  freq: "  << result.frequency
+                    << "  index: " << result.index
+                    << "  power: " << result.amplitude
+                    << "  first:"  << result.firstHydrophone
+                    << "  count: " << counter
+                    << "\n\ttime: " << result.timeStamp0
+                    << ", " << result.timeStamp1
+                    << ", " << result.timeStamp2
+                    << ".\n"
+                    << endl;
+        }
 
         rxData.clear();
         serialPort->clear();
         counter++;
 
         emit jsonServer->sendResult(result, counter);
-    } else if (!rxData.startsWith(dataHeader))
-    {
+    } else if (!rxData.startsWith(dataHeader)) {
         rxData.clear();
         serialPort->clear();
     }
@@ -122,13 +122,46 @@ bool stm32sonar::transmitSettings(settingsPacket settings)
         << settings.base_a_b
         << settings.dataFooter;
 
-    int written = serialPort->write(buffer);
+    serialPort->write(buffer);
     serialPort->waitForBytesWritten(5000);
 
-    sOutput << "\n\t\t/// SETTINGS ARE SET: "
-            << written << " "
-            << settings.dataHeader << " ///\n" << endl;
+    if (toConsole)
+        sOutput << "Settings were transmitted!" << endl;
+
+    saveLastSettings(settings);
 
     return true;
 }
 
+void stm32sonar::loadLastSettings()
+{
+    settingsPacket settings;
+    settings.sampleRate0 = sonarSettings->value("LastSettings/SampleRate0").toFloat();
+    settings.sampleRate1 = sonarSettings->value("LastSettings/SampleRate1").toFloat();
+    settings.sampleRate2 = sonarSettings->value("LastSettings/SampleRate2").toFloat();
+    settings.threshold   = sonarSettings->value("LastSettings/threshold").toInt();
+    settings.max_a_b     = sonarSettings->value("LastSettings/max_a_b").toInt();
+    settings.max_a_c     = sonarSettings->value("LastSettings/max_a_c").toInt();
+    settings.min_a_b     = sonarSettings->value("LastSettings/min_a_b").toInt();
+    settings.min_a_c     = sonarSettings->value("LastSettings/min_a_c").toInt();
+    settings.min_b_c     = sonarSettings->value("LastSettings/min_b_c").toInt();
+    settings.base_a_b    = sonarSettings->value("LastSettings/base_a_b").toInt();
+
+    emit transmitSettings(settings);
+}
+
+
+void stm32sonar::saveLastSettings(settingsPacket settings)
+{
+    sonarSettings->setValue("LastSettings/SampleRate0", settings.sampleRate0);
+    sonarSettings->setValue("LastSettings/SampleRate1", settings.sampleRate1);
+    sonarSettings->setValue("LastSettings/SampleRate2", settings.sampleRate2);
+    sonarSettings->setValue("LastSettings/threshold", settings.threshold);
+    sonarSettings->setValue("LastSettings/max_a_b", settings.max_a_b);
+    sonarSettings->setValue("LastSettings/max_a_c", settings.max_a_c);
+    sonarSettings->setValue("LastSettings/min_a_b", settings.min_a_b);
+    sonarSettings->setValue("LastSettings/min_a_c", settings.min_a_c);
+    sonarSettings->setValue("LastSettings/min_b_c", settings.min_b_c);
+    sonarSettings->setValue("LastSettings/base_a_b", settings.base_a_b);
+    sonarSettings->sync();
+}
