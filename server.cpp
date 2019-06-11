@@ -1,10 +1,50 @@
 #include "server.h"
 #include <QWebSocket>
 #include <QWebSocketServer>
-
 #include <optional>
 
-std::optional<settingsPacket> parseSettings(const QString data) {
+
+Server::Server(quint16 port, QObject *parent) : QObject(parent)
+{
+    m_pWebSocketServer = new QWebSocketServer(QStringLiteral("Sonar Server"),
+                                              QWebSocketServer::NonSecureMode,
+                                              this);
+
+    success = m_pWebSocketServer->listen(QHostAddress::Any, port);
+
+    connect(m_pWebSocketServer, &QWebSocketServer::newConnection,
+            this, &Server::onNewConnection);
+
+    connect(m_pWebSocketServer, &QWebSocketServer::closed,
+            this, &Server::closed);
+}
+
+
+void Server::onNewConnection()
+{
+    QWebSocket *pSocket = m_pWebSocketServer->nextPendingConnection();
+
+    connect(pSocket, &QWebSocket::textMessageReceived,
+            this, &Server::messageReceived);
+
+    connect(pSocket, &QWebSocket::disconnected,
+            this, &Server::socketDisconnected);
+
+    m_clients << pSocket;
+}
+
+
+void Server::socketDisconnected()
+{
+    QWebSocket *pClient = qobject_cast<QWebSocket *>(sender());
+    if (pClient) {
+        m_clients.removeAll(pClient);
+        pClient->deleteLater();
+    }
+}
+
+
+std::optional<settingsPacket> Server::parseSettings(const QString data) {
     QJsonDocument document = QJsonDocument::fromJson(data.toLocal8Bit());
     QJsonObject jsonObject = document.object();
 
@@ -43,33 +83,6 @@ std::optional<settingsPacket> parseSettings(const QString data) {
 }
 
 
-Server::Server(quint16 port, QObject *parent) : QObject(parent)
-{
-    m_pWebSocketServer = new QWebSocketServer(QStringLiteral("Sonar Server"),
-                                              QWebSocketServer::NonSecureMode,
-                                              this);
-
-    m_pWebSocketServer->listen(QHostAddress::Any, port);
-
-    connect(m_pWebSocketServer, &QWebSocketServer::newConnection,
-            this, &Server::onNewConnection);
-
-    connect(m_pWebSocketServer, &QWebSocketServer::closed,
-            this, &Server::closed);
-}
-
-
-void Server::onNewConnection()
-{
-    QWebSocket *pSocket = m_pWebSocketServer->nextPendingConnection();
-
-    connect(pSocket, &QWebSocket::textMessageReceived, this, &Server::messageReceived);
-    connect(pSocket, &QWebSocket::disconnected, this, &Server::socketDisconnected);
-
-    m_clients << pSocket;
-}
-
-
 void Server::messageReceived(QString message)
 {
     auto settings = parseSettings(message);
@@ -77,17 +90,6 @@ void Server::messageReceived(QString message)
         emit settingsReceived(settings.value());
     }
 }
-
-
-void Server::socketDisconnected()
-{
-    QWebSocket *pClient = qobject_cast<QWebSocket *>(sender());
-    if (pClient) {
-        m_clients.removeAll(pClient);
-        pClient->deleteLater();
-    }
-}
-
 
 void Server::sendResult(resultPacket &result, int id)
 {

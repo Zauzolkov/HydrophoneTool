@@ -17,49 +17,45 @@ stm32sonar::stm32sonar(QString devicePath,
 
     counter = 0;
 
-    connect(serialPort, &QSerialPort::readyRead, this, &stm32sonar::handleReadyRead);
-    connect(jsonServer, &Server::settingsReceived, this, &stm32sonar::transmitSettings);
+    connect(serialPort, &QSerialPort::readyRead,
+            this, &stm32sonar::handleReadyRead);
 
-//    connect(&timer, &QTimer::timeout, this, &stm32sonar::transmitSettings);
-//    timer.start(1500);
-
-//    emit(transmitSettings());
+    connect(jsonServer, &Server::settingsReceived,
+            this, &stm32sonar::transmitSettings);
 }
 
 /* 0 = ok
  * 1 = failed to open
  * 2 = not writable
+ * 3 = server failed to start
  */
 
 int stm32sonar::success()
 {
-    if (serialPort->isOpen() && serialPort->isWritable())
+    if (serialPort->isOpen() && serialPort->isWritable() && jsonServer->success)
     {
         return 0;
     } else if (!serialPort->isOpen()) {
         return 1;
     } else if (!serialPort->isWritable()) {
         return 2;
+    } else if (!jsonServer->success) {
+        return 3;
     } else {
         return -1;
     }
 }
 
+
 void stm32sonar::handleReadyRead()
 {
-//    if (serialPort->bytesAvailable() < 48) {
-//        return;
-//    }
-
     rxData.append(serialPort->read(48));
 
     if (rxData.startsWith(dataHeader) && rxData.endsWith(dataFooter))
     {
-//        sOutput << "DataReceived!" << endl;
-//        sOutput << rxData << endl;
+        resultPacket result;
         QDataStream in(rxData);
         in.setByteOrder(QDataStream::LittleEndian);
-        resultPacket result;
 
         in  >> result.header
             >> result.frequency
@@ -72,13 +68,6 @@ void stm32sonar::handleReadyRead()
             >> result.timeStamp1
             >> result.timeStamp2
             >> result.footer;
-
-//        result.angle = *(double*)(&result.angle);
-
-        /*
-        4 гфон = 1 на плате
-        1 гфон = 2 на плате
-        */
 
         sOutput << "OUTPUT: "
                 << "\tangle: " << result.angle
@@ -94,37 +83,18 @@ void stm32sonar::handleReadyRead()
                 << ".\n"
                 << endl;
 
-        /* сделать таймер, который будет сбрасывать чтение,
-         * если долго нет ответов
-         */
-
-
-        /*
-         * 1 - 2 - 4
-         * A   B   C
-         *
-         *
-         *
-         *
-         * 1 - 2
-         *     |
-         *     4
-         *
-         */
-
         rxData.clear();
         serialPort->clear();
         counter++;
 
         emit jsonServer->sendResult(result, counter);
-    }
-
-    if (!rxData.startsWith(dataHeader))
+    } else if (!rxData.startsWith(dataHeader))
     {
         rxData.clear();
         serialPort->clear();
     }
 }
+
 
 bool stm32sonar::transmitSettings(settingsPacket settings)
 {
@@ -155,60 +125,10 @@ bool stm32sonar::transmitSettings(settingsPacket settings)
     int written = serialPort->write(buffer);
     serialPort->waitForBytesWritten(5000);
 
-    sOutput << "\n\t\t/// SETTINGS ARE SET: " << written << " " << settings.dataHeader << " ///\n" << endl;
+    sOutput << "\n\t\t/// SETTINGS ARE SET: "
+            << written << " "
+            << settings.dataHeader << " ///\n" << endl;
 
     return true;
 }
 
-//bool stm32sonar::transmitSettings()
-//{
-////    timer.stop();
-
-//    settingsPacket newSettings;
-//    // rate = (512*khz)/index
-//    // (512.0*35.5)/255
-
-//    newSettings.dataHeader = dataHeader;
-////    newSettings.sampleRate0 = 70.72f;
-////    newSettings.sampleRate1 = 70.04f;
-////    newSettings.sampleRate2 = 68.07f;
-//    newSettings.sampleRate0 = (512.0*25.0)/182.0;
-//    newSettings.sampleRate1 = (512.0*25.0)/182.0;
-//    newSettings.sampleRate2 = (512.0*25.0)/182.0;
-////    newSettings.threshold = 55000;
-//    newSettings.threshold = 30000;
-//    newSettings.max_a_b = 150;
-//    newSettings.max_a_c = 150;
-//    newSettings.min_a_b = 50;
-//    newSettings.min_a_c = 50;
-//    newSettings.min_b_c = 50;
-//    newSettings.base_a_b = 150;
-//    newSettings.dataFooter = dataFooter;
-
-//    QByteArray buffer;
-//    QDataStream out(&buffer, QIODevice::ReadWrite);
-//    out.setByteOrder(QDataStream::LittleEndian);
-//    out.setFloatingPointPrecision(QDataStream::SinglePrecision);
-
-//    out << newSettings.dataHeader
-//        << newSettings.sampleRate0
-//        << newSettings.sampleRate1
-//        << newSettings.sampleRate2
-//        << newSettings.threshold
-//        << newSettings.max_a_b
-//        << newSettings.max_a_c
-//        << newSettings.min_a_b
-//        << newSettings.min_a_c
-//        << newSettings.min_b_c
-//        << newSettings.base_a_b
-//        << newSettings.dataFooter;
-
-////    sOutput << buffer << endl;
-
-//    int written = serialPort->write(buffer);
-//    serialPort->waitForBytesWritten(5000);
-
-//    sOutput << "\n\t\t/// SETTINGS ARE SET: " << written << " ///\n" << endl;
-
-//    return true;
-//}

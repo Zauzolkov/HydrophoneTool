@@ -20,6 +20,7 @@ class Server : public QObject
     Q_OBJECT
 public:
     explicit Server(quint16 port = 3005, QObject *parent = nullptr);
+    bool success = false;
 
 signals:
     void settingsReceived(settingsPacket settings);
@@ -34,6 +35,7 @@ public slots:
 private:
     QWebSocketServer *m_pWebSocketServer;
     QList<QWebSocket *> m_clients;
+    std::optional<settingsPacket> parseSettings(const QString data);
     bool m_debug;
 };
 
