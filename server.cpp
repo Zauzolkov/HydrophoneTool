@@ -111,6 +111,7 @@ void Server::sendResult(resultPacket &result, int id)
     jsonObject["quarter"] = qint32(result.ping_quarter);
     jsonObject["angle"] = result.angle;
     jsonObject["timeStamps"] = timeStamps;
+    jsonObject["overPinger"] = result.overPinger;
 
     QJsonDocument jsonDoc(jsonObject);
 

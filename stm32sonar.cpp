@@ -48,9 +48,13 @@ int stm32sonar::success()
 
 void stm32sonar::handleReadyRead()
 {
-    rxData.append(serialPort->read(48));
+//    if (serialPort->bytesAvailable() < 48) {
+//        return;
+//    }
 
-    if (rxData.startsWith(dataHeader) && rxData.endsWith(dataFooter))
+    rxData.append(serialPort->read(40));
+
+    if (rxData.startsWith(dataHeader) && rxData[39] == dataFooter)
     {
         resultPacket result;
         QDataStream in(rxData);
@@ -66,6 +70,7 @@ void stm32sonar::handleReadyRead()
             >> result.timeStamp0
             >> result.timeStamp1
             >> result.timeStamp2
+            >> result.overPinger
             >> result.footer;
 
         if (toConsole)
@@ -83,16 +88,25 @@ void stm32sonar::handleReadyRead()
                     << "\ttime: " << result.timeStamp0
                     << ", " << result.timeStamp1
                     << ", " << result.timeStamp2
+                    << " overPinger: " << result.overPinger
                     << "\n"
                     << endl;
+        }
+
+        // кривой пакет
+        if (result.timeStamp0 == 0 && result.timeStamp1 == 0)
+        {
+            sOutput << "\n\n!!!ACHTUNG!!!\n" << endl;
         }
 
         rxData.clear();
         serialPort->clear();
         counter++;
 
+        // TODO: переделать номер пакета на TimeStamp
+
         emit jsonServer->sendResult(result, counter);
-    } else if (!rxData.startsWith(dataHeader)) {
+    } else if (!rxData.startsWith(dataHeader) || rxData.length() > 40) {
         rxData.clear();
         serialPort->clear();
     }
@@ -136,6 +150,7 @@ bool stm32sonar::transmitSettings(settingsPacket settings)
     return true;
 }
 
+
 void stm32sonar::loadLastSettings()
 {
     settingsPacket settings;
@@ -156,9 +171,10 @@ void stm32sonar::loadLastSettings()
 
 void stm32sonar::saveLastSettings(settingsPacket settings)
 {
-    sonarSettings->setValue("LastSettings/SampleRate0", settings.sampleRate0);
-    sonarSettings->setValue("LastSettings/SampleRate1", settings.sampleRate1);
-    sonarSettings->setValue("LastSettings/SampleRate2", settings.sampleRate2);
+//    sonarSettings->setValue("LastSettings/SampleRate0", settings.sampleRate0);
+    sonarSettings->setValue("LastSettings/SampleRate0", QString::number(settings.sampleRate0,'f',8));
+    sonarSettings->setValue("LastSettings/SampleRate1", QString::number(settings.sampleRate1,'f',8));
+    sonarSettings->setValue("LastSettings/SampleRate2", QString::number(settings.sampleRate2,'f',8));
     sonarSettings->setValue("LastSettings/threshold", settings.threshold);
     sonarSettings->setValue("LastSettings/max_a_b", settings.max_a_b);
     sonarSettings->setValue("LastSettings/max_a_c", settings.max_a_c);

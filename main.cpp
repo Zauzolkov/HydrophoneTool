@@ -31,19 +31,25 @@ void writeDefaultSettings(QSettings *settings)
     // калибровка:
     // rate = (512*khz)/index
     // (512.0*35.5)/255
-    float curFreq = 35.5;
 
-    settings->setValue("LastSettings/SampleRate0", (512.0*curFreq)/257.5);
-    settings->setValue("LastSettings/SampleRate1", (512.0*curFreq)/261.5);
-    settings->setValue("LastSettings/SampleRate2", (512.0*curFreq)/268);
+    float curFreq = 35.5;
+    double rates[] = {
+        (512.0*curFreq)/260.5,
+        (512.0*curFreq)/263.5,
+        (512.0*curFreq)/266.5
+    };
+
+    settings->setValue("LastSettings/SampleRate0", QString::number(rates[0],'f',8));
+    settings->setValue("LastSettings/SampleRate1", QString::number(rates[1],'f',8));
+    settings->setValue("LastSettings/SampleRate2", QString::number(rates[2],'f',8));
     //////////
 
     settings->setValue("LastSettings/threshold", 35000);
-    settings->setValue("LastSettings/max_a_b", 150);
-    settings->setValue("LastSettings/max_a_c", 150);
-    settings->setValue("LastSettings/min_a_b", 50);
-    settings->setValue("LastSettings/min_a_c", 50);
-    settings->setValue("LastSettings/min_b_c", 50);
+    settings->setValue("LastSettings/max_a_b", 15);
+    settings->setValue("LastSettings/max_a_c", 15);
+    settings->setValue("LastSettings/min_a_b", 5);
+    settings->setValue("LastSettings/min_a_c", 5);
+    settings->setValue("LastSettings/min_b_c", 5);
     settings->setValue("LastSettings/base_a_b", 150);
 
     settings->setValue("ServerPort", 3005);
