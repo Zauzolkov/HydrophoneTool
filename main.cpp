@@ -9,8 +9,6 @@
 //const QString configPath = QDir::currentPath() + "/SonarConfig.ini";
 const QString configPath = "/etc/auv/config/sonar.ini";
 
-/*   /etc/auv/config/sonar.ini    */
-
 const QString red    = "\033[1;31m";
 const QString green  = "\033[1;32m";
 const QString yellow = "\033[1;33m";
@@ -25,9 +23,21 @@ void writeDefaultSettings(QSettings *settings)
     settings->setValue("UART/BaudRate", 115200);
     settings->setValue("UART/LastPath", "ttyUSB0");
 
-    settings->setValue("LastSettings/SampleRate0", 70.5);
-    settings->setValue("LastSettings/SampleRate1", 70.0);
-    settings->setValue("LastSettings/SampleRate2", 70.0);
+//    settings->setValue("LastSettings/SampleRate0", 70.5);
+//    settings->setValue("LastSettings/SampleRate1", 70.0);
+//    settings->setValue("LastSettings/SampleRate2", 70.0);
+
+    //////////
+    // калибровка:
+    // rate = (512*khz)/index
+    // (512.0*35.5)/255
+    float curFreq = 35.5;
+
+    settings->setValue("LastSettings/SampleRate0", (512.0*curFreq)/257.5);
+    settings->setValue("LastSettings/SampleRate1", (512.0*curFreq)/261.5);
+    settings->setValue("LastSettings/SampleRate2", (512.0*curFreq)/268);
+    //////////
+
     settings->setValue("LastSettings/threshold", 35000);
     settings->setValue("LastSettings/max_a_b", 150);
     settings->setValue("LastSettings/max_a_c", 150);
@@ -38,6 +48,7 @@ void writeDefaultSettings(QSettings *settings)
 
     settings->setValue("ServerPort", 3005);
     settings->setValue("ConsoleOutput", true);
+
     settings->sync();
 }
 
@@ -53,7 +64,7 @@ int main(int argc, char *argv[])
 
     if (!settings.contains("UART/PID"))
     {
-        stdOutput << yellow << "Config file is not found!" << norm << endl
+        stdOutput << yellow << "Config file not found!" << norm << endl
                   << "Generating new config with default values..." << endl;
         writeDefaultSettings(&settings);
     }
@@ -109,7 +120,7 @@ int main(int argc, char *argv[])
         case 3:
             errOutput << redError
                       << "Failed to start WebSocket server!" << endl
-                      << "Maybe something is already running on 3005 port." << endl;
+                      << "Maybe something is already running on this port." << endl;
             break;
         default:
             errOutput << red << "ERROR: UNKNOWN FAILURE!" << endl;

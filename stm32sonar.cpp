@@ -24,7 +24,8 @@ stm32sonar::stm32sonar(QString configPath,
     connect(jsonServer, &Server::settingsReceived,
             this, &stm32sonar::transmitSettings);
 
-    loadLastSettings();
+    if (success() == 0)
+        loadLastSettings();
 }
 
 
@@ -70,17 +71,19 @@ void stm32sonar::handleReadyRead()
         if (toConsole)
         {
             sOutput << "OUTPUT:"
-                    << "\tangle: " << result.angle
+                    << "\tfirst:"  << result.firstHydrophone
                     << "\tquart: " << result.ping_quarter
-                    << "  freq: "  << result.frequency
+                    << "\tangle: " << result.angle
+                    << endl
+                    << "\tfreq: "  << result.frequency
                     << "  index: " << result.index
                     << "  power: " << result.amplitude
-                    << "  first:"  << result.firstHydrophone
-                    << "  count: " << counter
-                    << "\n\ttime: " << result.timeStamp0
+                    << endl
+                    << "n: " << counter
+                    << "\ttime: " << result.timeStamp0
                     << ", " << result.timeStamp1
                     << ", " << result.timeStamp2
-                    << ".\n"
+                    << "\n"
                     << endl;
         }
 

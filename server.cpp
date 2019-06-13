@@ -91,6 +91,7 @@ void Server::messageReceived(QString message)
     }
 }
 
+
 void Server::sendResult(resultPacket &result, int id)
 {
     QJsonObject jsonObject;
@@ -114,6 +115,7 @@ void Server::sendResult(resultPacket &result, int id)
     QJsonDocument jsonDoc(jsonObject);
 
     for (const auto &c : m_clients) {
+        // TODO: в финальной версии заменить QJsonDocument::Indented на Compact
         c->sendTextMessage(jsonDoc.toJson(QJsonDocument::Indented));
     }
 }
