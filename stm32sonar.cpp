@@ -13,7 +13,7 @@ stm32sonar::stm32sonar(QString configPath,
     serialPort->setDataBits(QSerialPort::Data8);
     serialPort->setParity(QSerialPort::NoParity);
     serialPort->setStopBits(QSerialPort::OneStop);
-    serialPort->setFlowControl(QSerialPort::SoftwareControl);
+    serialPort->setFlowControl(QSerialPort::NoFlowControl);
     serialPort->open(QIODevice::ReadWrite);
 
     jsonServer = new Server(sonarSettings->value("ServerPort").toInt());
@@ -48,10 +48,6 @@ int stm32sonar::success()
 
 void stm32sonar::handleReadyRead()
 {
-//    if (serialPort->bytesAvailable() < 48) {
-//        return;
-//    }
-
     rxData.append(serialPort->read(40));
 
     if (rxData.startsWith(dataHeader) && rxData[39] == dataFooter)
@@ -93,19 +89,23 @@ void stm32sonar::handleReadyRead()
                     << endl;
         }
 
-        // кривой пакет
-        if (result.timeStamp0 == 0 && result.timeStamp1 == 0)
-        {
-            sOutput << "\n\n!!!ACHTUNG!!!\n" << endl;
-        }
-
         rxData.clear();
         serialPort->clear();
         counter++;
 
-        // TODO: переделать номер пакета на TimeStamp
+        // кривой пакет
+        if (result.timeStamp0 == 0 ||
+            result.timeStamp1 == 0 ||
+            result.amplitude  == 0 ||
+            (result.ping_quarter == 0 && result.angle == 0))
+        {
+            return;
 
+        }
+
+        // TODO: переделать номер пакета на TimeStamp
         emit jsonServer->sendResult(result, counter);
+
     } else if (!rxData.startsWith(dataHeader) || rxData.length() > 40) {
         rxData.clear();
         serialPort->clear();
@@ -139,11 +139,11 @@ bool stm32sonar::transmitSettings(settingsPacket settings)
         << settings.base_a_b
         << settings.dataFooter;
 
-    serialPort->write(buffer);
-    serialPort->waitForBytesWritten(5000);
+    int bytesCount = serialPort->write(buffer, 48);
+    serialPort->waitForBytesWritten(500);
 
     if (toConsole)
-        sOutput << "Settings were transmitted!" << endl;
+        sOutput << "Settings were transmitted! - " << bytesCount << endl;
 
     saveLastSettings(settings);
 

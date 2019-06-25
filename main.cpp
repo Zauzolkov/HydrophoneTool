@@ -17,9 +17,9 @@ const QString redError = red + "ERROR: " + norm;
 
 void writeDefaultSettings(QSettings *settings)
 {
-    settings->setValue("UART/PID", 60000);
-    settings->setValue("UART/VID", 4292);
-    settings->setValue("UART/Serial", "0001"); // внимание! сер. номер - строка!
+    settings->setValue("UART/PID", 24577);
+    settings->setValue("UART/VID", 1027);
+    settings->setValue("UART/Serial", "A506MJ51"); // внимание! сер. номер - строка!
     settings->setValue("UART/BaudRate", 115200);
     settings->setValue("UART/LastPath", "ttyUSB0");
 
@@ -101,7 +101,10 @@ int main(int argc, char *argv[])
     {
         if (toConsole)
             errOutput << redError << "Sonar not found!" << endl;
-        std::abort();
+//        std::abort();
+        settings.setValue("UART/LastPath", "ttyUSB0");
+        settings.sync();
+        /* WARN: !!!!!!!!! */
     }
 
     stm32sonar sonar(configPath);

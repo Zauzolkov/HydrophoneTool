@@ -107,7 +107,7 @@ void Server::sendResult(resultPacket &result, int id)
     jsonObject["frequency"] = qint32(result.frequency);
     jsonObject["rawIndex"] = qint32(result.index);
     jsonObject["amplitude"] = qint32(result.amplitude);
-    jsonObject["firstHydrophone"] = qint32(result.firstHydrophone);
+    jsonObject["lastHydrophone"] = qint32(result.firstHydrophone);
     jsonObject["quarter"] = qint32(result.ping_quarter);
     jsonObject["angle"] = result.angle;
     jsonObject["timeStamps"] = timeStamps;

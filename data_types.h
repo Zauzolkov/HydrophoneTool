@@ -2,7 +2,7 @@
 #define DATATYPES_H
 
 const uint32_t dataHeader = 'A';
-const uint32_t dataFooter = '\n';
+const uint8_t dataFooter = '\n';
 
 /* TODO: добавить bool abovePinger?
  * чтобы сохранить размер пакета в 48 байт,
@@ -18,9 +18,9 @@ struct resultPacket {
     uint8_t firstHydrophone;
     int8_t ping_quarter;
     double angle; // 8 bytes
-    uint32_t timeStamp0;
-    uint32_t timeStamp1;
-    uint32_t timeStamp2;
+    int32_t timeStamp0;
+    int32_t timeStamp1;
+    int32_t timeStamp2;
     bool     overPinger;
     uint8_t footer;
 };
