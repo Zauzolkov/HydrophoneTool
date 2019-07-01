@@ -60,7 +60,7 @@ void stm32sonar::handleReadyRead()
             >> result.frequency
             >> result.index
             >> result.amplitude
-            >> result.firstHydrophone
+            >> result.lastHydrophone
             >> result.ping_quarter
             >> result.angle
             >> result.timeStamp0
@@ -72,7 +72,7 @@ void stm32sonar::handleReadyRead()
         if (toConsole)
         {
             sOutput << "OUTPUT:"
-                    << "\tfirst:"  << result.firstHydrophone
+                    << "\tlast: "  << result.lastHydrophone
                     << "\tquart: " << result.ping_quarter
                     << "\tangle: " << result.angle
                     << endl

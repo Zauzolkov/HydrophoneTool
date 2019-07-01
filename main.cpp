@@ -101,10 +101,9 @@ int main(int argc, char *argv[])
     {
         if (toConsole)
             errOutput << redError << "Sonar not found!" << endl;
-//        std::abort();
-        settings.setValue("UART/LastPath", "ttyUSB0");
-        settings.sync();
-        /* WARN: !!!!!!!!! */
+        std::abort();
+//        settings.setValue("UART/LastPath", "ttyUSB0");
+//        settings.sync();
     }
 
     stm32sonar sonar(configPath);
