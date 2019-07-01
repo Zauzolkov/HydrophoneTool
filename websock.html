@@ -1,0 +1,236 @@
+<html>
+    <head>
+        <title>SonarClient</title>
+    </head>
+    <body>
+        <h4>Horrible Sonar
+            <i style="color:#00000010">просто кошмар</i>
+        </h4>
+
+<!--        <h2><u>
+            <b style="color:#AA0000">ВЕЗДЕ ЗАМЕНИТЬ FIRST HYDROPHONE НА LAST!!!</b>
+        </u></h2>-->
+
+        <p>
+            <button onClick="initWebSocket();">Connect</button>
+            <button onClick="stopWebSocket();">Disconnect</button>
+            <button onClick="checkSocket();">State</button>
+            <button onClick="clearText();">Clear</button>
+        </p>
+        <p>
+            <textarea id="debugTextArea" style="width:400px;height:300px;"></textarea>
+        </p>
+        <p>
+            <textarea type="text" id="inputText" style="width:400px;height:250px;" onkeydown="if((event.keyCode == 10 || event.keyCode == 13) && event.ctrlKey) sendMessage();"/>
+{
+    "packetType": "settingsPacket",
+    "sampleRates": [
+        177.77777,
+        177.77777,
+        177.77777
+    ],
+    "threshold": 230,
+    "max_a_b": 250,
+    "max_a_c": 200,
+    "min_a_b": 5,
+    "min_a_c": 5,
+    "min_b_c": 5,
+    "base_a_b": 650
+
+}
+
+
+
+
+
+
+
+
+
+            </textarea>
+            <button onClick="sendMessage();">Send</button>
+        </p>
+
+
+        <canvas id="mycanvas" style="position:absolute;top:0;left:500px;width:700px;height:400px;"></canvas>
+
+
+        <script type="text/javascript">
+            var canvas = document.getElementById('mycanvas');
+            var debugTextArea = document.getElementById("debugTextArea");
+            var ctx = canvas.getContext('2d');
+            var timer;
+
+            function drawBack() {
+                ctx.clearRect(0, 0, 400, 400);
+
+                // x y lines
+                ctx.strokeStyle = "#999";
+                ctx.beginPath();
+                ctx.moveTo(100, 50);
+                ctx.lineTo(100,250);
+                ctx.closePath();
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo( 50,100);
+                ctx.lineTo(150,100);
+                ctx.closePath();
+                ctx.stroke();
+            };
+
+            drawBack();
+
+            Math.radians = function(degrees) {
+                return degrees * Math.PI / 180;
+            };
+
+            function debug(message) {
+                clearInterval(timer);
+                var dat = JSON.parse(message);
+
+                if (dat.frequency <= 24500 ||
+                    dat.frequency >= 46000 ||
+                    dat.amplitude <= 10)
+                {
+                    return;
+                }
+
+                debugTextArea.value += message + "\n";
+                debugTextArea.scrollTop = debugTextArea.scrollHeight;
+
+
+                ctx.beginPath();
+                var size = 50;
+                var angle = Math.radians(dat.angle - 90);
+                var cos = Math.cos(angle),
+                    sin = Math.sin(angle);
+
+                drawBack();
+
+                //quarter
+                ctx.fillStyle = "rgba(200,200,200,0.2)"
+                ctx.beginPath();
+                ctx.moveTo(100,100);
+                var q = 1 - dat.quarter
+                ctx.arc(100, 100, 50,
+                    Math.PI*(0.5*q),
+                    Math.PI*(0.5*q-0.5), true);
+                ctx.lineTo(100,100);
+                ctx.closePath();
+                ctx.fill();
+
+                // "arrow"
+                ctx.strokeStyle = "White";
+                ctx.strokeStyle = "#1CC";
+                ctx.beginPath();
+                ctx.lineWidth = 2;
+                ctx.moveTo(100,100);
+                ctx.lineTo(cos*size+100,
+                           sin*size+100);
+                ctx.closePath();
+                ctx.stroke();
+
+                // circle
+                ctx.fillStyle = "Orange"
+                ctx.beginPath();
+                ctx.arc(100, 100, 2.5, 0, Math.PI*2, true);
+                ctx.closePath();
+                ctx.fill();
+
+                timer = setInterval(drawSmallCircle, 75);
+            }
+
+            function drawSmallCircle () {
+                clearInterval(timer);
+                console.log("yes!");
+                ctx.fillStyle = "#686868"
+                ctx.beginPath();
+                ctx.arc(100, 100, 3, 0, Math.PI*2, true);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            function clearText() {
+                debugTextArea.value = "";
+            }
+
+            clearText();
+
+            function sendMessage() {
+                var msg = document.getElementById("inputText").value;
+                if ( websocket != null )
+                {
+//                     document.getElementById("inputText").value = "";
+                    websocket.send( msg );
+//                     console.log( "string sent :", '"'+msg+'"' );
+                }
+            }
+
+            var wsUri = "ws://192.168.1.15:3005";
+            var websocket = null;
+
+            function initWebSocket() {
+                try {
+                    if (typeof MozWebSocket == 'function')
+                        WebSocket = MozWebSocket;
+                    if ( websocket && websocket.readyState == 1 )
+                        websocket.close();
+                    websocket = new WebSocket( wsUri );
+                    websocket.onopen = function (evt) {
+                        debug("CONNECTED");
+                    };
+                    websocket.onclose = function (evt) {
+                        debug("DISCONNECTED");
+                    };
+                    websocket.onmessage = function (evt) {
+//                         console.log( "Message received :", evt.data );
+                        debug( evt.data );
+                    };
+                    websocket.onerror = function (evt) {
+                        debug('ERROR: ' + evt.data);
+                    };
+                } catch (exception) {
+                    debug('ERROR: ' + exception);
+                }
+            }
+
+            function stopWebSocket() {
+                if (websocket)
+                    websocket.close();
+            }
+
+            function checkSocket() {
+                if (websocket != null) {
+                    var stateStr;
+                    switch (websocket.readyState) {
+                        case 0: {
+                            stateStr = "CONNECTING";
+                            break;
+                        }
+                        case 1: {
+                            stateStr = "OPEN";
+                            break;
+                        }
+                        case 2: {
+                            stateStr = "CLOSING";
+                            break;
+                        }
+                        case 3: {
+                            stateStr = "CLOSED";
+                            break;
+                        }
+                        default: {
+                            stateStr = "UNKNOW";
+                            break;
+                        }
+                    }
+                    debug("WebSocket state = " + websocket.readyState + " ( " + stateStr + " )");
+                } else {
+                    debug("WebSocket is null");
+                }
+            }
+
+        </script>
+    </body>
+</html>
